@@ -396,3 +396,28 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     model.config.use_cache = use_cache
     torch.cuda.empty_cache()
+
+def prune_opposite_magnitude(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    layers = model.model.layers 
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name in subset:
+            W = subset[name].weight.data 
+            W_metric = torch.abs(W)
+
+            if prune_n != 0:
+                W_mask = (torch.zeros_like(W)==1)
+                for ii in range(W_metric.shape[1]):
+                    if ii % prune_m == 0:
+                        # Prune the largest 'prune_n' values within each block
+                        tmp = W_metric[:,ii:(ii+prune_m)].float()
+                        W_mask.scatter_(1,ii+torch.topk(tmp, prune_n,dim=1, largest=True)[1], True) 
+            else:
+                # Prune values above the threshold (opposite of original logic)
+                thresh = torch.sort(W_metric.flatten().cuda())[0][int(W.numel()*(1-args.sparsity_ratio))].cpu() 
+                W_mask = (W_metric >= thresh) 
+
+            W[W_mask] = 0
