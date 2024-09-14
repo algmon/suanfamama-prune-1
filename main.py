@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 
-from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude
+from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_movement
 from lib.eval import eval_ppl, eval_zero_shot
 
 print('torch', version('torch'))
@@ -73,8 +73,10 @@ def main():
             prune_sparsegpt(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif "ablate" in args.prune_method:
             prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-        elif args.prune_method == "opposite_magnitude":  # New condition
+        elif args.prune_method == "opposite_magnitude":
             prune_opposite_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+        elif args.prune_method == "movement":
+            prune_movement(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
 
     ################################################################
     print("*"*30)
