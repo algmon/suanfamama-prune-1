@@ -463,84 +463,175 @@ def prune_movement(args, model, tokenizer, device=torch.device("cuda:0"), prune_
 
             subset[name].weight.data = W  # Update the layer's weight
 
-def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+def prune_aigc_technique1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
-    Prunes the model's weights based on the magnitude of biases.
-
-    For each layer, it prunes the weights connected to neurons with biases above a certain threshold.
-
-    Args:
-        args: Arguments containing pruning parameters.
-            - sparsity_ratio (float): Fraction of neurons to prune based on bias magnitude.
-            - prune_method (str): Method of pruning ('unstructured', 'structured').
-            - Iterative pruning parameters can be added as needed.
-        model: The PyTorch model to prune.
-        tokenizer: Tokenizer used for the model (not used in this function).
-        device: Device to perform computations on (CPU or GPU).
-        prune_n: Number of weights to prune per block (used in structured pruning).
-        prune_m: Block size or similar parameter (used in structured pruning).
+    梯度敏感剪枝：基于权重对损失的敏感性进行剪枝。
     """
-    layers = model.model.layers  # Assuming the model has a 'model.layers' attribute
+    print('Starting Gradient Sensitivity Pruning...')
+    layers = model.model.layers
 
     for i in range(len(layers)):
         layer = layers[i]
-        subset = find_layers(layer)  # e.g., finding nn.Linear layers
+        subset = find_layers(layer)
 
-        for name in subset:
-            sublayer = subset[name]
-            
-            if sublayer.bias is None:
-                print(f"Layer {i} sublayer {name} has no bias. Skipping.")
-                continue
+        for name, module in subset.items():
+            W = module.weight.data
+            W.requires_grad = True
 
-            bias = sublayer.bias.data  # Shape: [out_features]
-            W = sublayer.weight.data   # Shape: [out_features, in_features]
+            # 模拟一次前向传播和反向传播以获取梯度
+            # 假设有一个损失函数，这里仅作为示例
+            # 实际应用中需要根据具体任务定义损失函数
+            optimizer = torch.optim.SGD([W], lr=0.001)
+            optimizer.zero_grad()
+            loss = W.sum()  # 示例损失
+            loss.backward()
 
-            # Compute absolute bias magnitudes
-            bias_magnitude = torch.abs(bias)
+            # 计算敏感度度量
+            sensitivity = torch.abs(W.grad) * torch.abs(W)
+            sensitivity = sensitivity.cpu()
 
-            # Determine the number of neurons to prune
-            num_neurons = bias_magnitude.numel()
-            num_prune = int(num_neurons * args.sparsity_ratio)
-
-            if num_prune == 0:
-                print(f"Layer {i} sublayer {name}: Sparsity ratio too low to prune any neurons.")
-                continue
-
-            # Sort biases and select top neurons to prune
-            if prune_n != 0:
-                # Structured pruning: Prune 'prune_n' neurons per 'prune_m' group
-                W_mask = torch.zeros_like(W, dtype=torch.bool)
-                for ii in range(0, W.shape[0], prune_m):
-                    end = min(ii + prune_m, W.shape[0])
-                    group_bias = bias_magnitude[ii:end]
-                    if group_bias.numel() == 0:
-                        continue
-                    # Determine number to prune in this group
-                    group_prune_n = min(prune_n, group_bias.numel())
-                    if group_prune_n == 0:
-                        continue
-                    # Get indices of top 'group_prune_n' biases in the group
-                    _, top_indices = torch.topk(group_bias, group_prune_n, largest=True)
-                    W_mask[ii:end, :] = False  # Initialize mask
-                    W_mask[ii:end, :][top_indices, :] = True
-                # Apply mask
-                W[W_mask] = 0
-                print(f"Layer {i} sublayer {name}: Structured pruning applied with prune_n={prune_n}, prune_m={prune_m}.")
+            # 根据敏感度选择剪枝阈值
+            if args.prune_n != 0:
+                threshold, _ = torch.topk(sensitivity.view(-1), prune_n, largest=False)
+                thresh = threshold[-1]
+                W_mask = sensitivity <= thresh
             else:
-                # Unstructured pruning: Prune top 'num_prune' neurons based on bias magnitude
-                threshold, _ = torch.topk(bias_magnitude, num_prune, largest=True, sorted=True)
-                if num_prune < num_neurons:
-                    actual_threshold = threshold[-1]
-                else:
-                    actual_threshold = threshold[0]
+                thresh = torch.sort(sensitivity.view(-1), descending=False)[0][int(W.numel() * args.sparsity_ratio)]
+                W_mask = sensitivity <= thresh
 
-                # Create mask where bias magnitude exceeds the threshold
-                prune_mask = bias_magnitude >= actual_threshold  # Shape: [out_features]
+            # 应用剪枝掩码
+            W[W_mask] = 0
 
-                # Expand prune_mask to match weight dimensions
-                prune_mask = prune_mask.unsqueeze(1).expand_as(W)  # Shape: [out_features, in_features]
+            module.weight.data = W.to(device)
 
-                # Apply mask
-                W[prune_mask] = 0
-                print(f"Layer {i} sublayer {name}: Unstructured pruning applied. Pruned {num_prune} neurons based on bias magnitude.")
+            print(f"Layer {i}, {name}: Pruned with sensitivity threshold {thresh.item():.6f}")
+
+    print('Gradient Sensitivity Pruning Completed.')
+
+def prune_aigc_technique2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    L1 范数剪枝：基于权重的 L1 范数进行剪枝。
+    """
+    print('Starting L1 Norm Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            W_norm = torch.norm(W, p=1, dim=1)  # 计算每一行的 L1 范数
+
+            # 根据 L1 范数选择剪枝阈值
+            if args.prune_n != 0:
+                threshold, _ = torch.topk(W_norm, prune_n, largest=False)
+                thresh = threshold[-1]
+                prune_rows = W_norm <= thresh
+            else:
+                thresh = torch.sort(W_norm, descending=False)[0][int(W_norm.numel() * args.sparsity_ratio)]
+                prune_rows = W_norm <= thresh
+
+            # 剪枝整行权重
+            W[prune_rows, :] = 0
+
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Pruned {prune_rows.sum().item()} rows with L1 norm threshold {thresh.item():.6f}")
+
+    print('L1 Norm Pruning Completed.')
+
+def prune_aigc_technique3(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    结构化剪枝：基于通道的重要性进行剪枝。
+    """
+    print('Starting Structured Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            W_norm = torch.norm(W, p=1, dim=0)  # 计算每个通道（列）的 L1 范数
+
+            # 根据通道 L1 范数选择剪枝阈值
+            if args.prune_n != 0:
+                threshold, _ = torch.topk(W_norm, prune_n, largest=False)
+                thresh = threshold[-1]
+                prune_channels = W_norm <= thresh
+            else:
+                thresh = torch.sort(W_norm, descending=False)[0][int(W_norm.numel() * args.sparsity_ratio)]
+                prune_channels = W_norm <= thresh
+
+            # 剪枝整通道权重
+            W[:, prune_channels] = 0
+
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Pruned {prune_channels.sum().item()} channels with L1 norm threshold {thresh.item():.6f}")
+
+    print('Structured Pruning Completed.')
+
+from sklearn.cluster import KMeans
+import numpy as np
+
+def prune_aigc_technique4(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    K-means 聚类剪枝：通过权重聚类来实现剪枝和量化。
+    """
+    print('Starting K-means Clustering Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data.cpu().numpy().reshape(-1, 1)  # 转换为二维数组
+            num_clusters = int(1 / args.sparsity_ratio)  # 设定聚类数量
+            kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(W)
+            cluster_centers = kmeans.cluster_centers_
+            labels = kmeans.labels_
+
+            # 分配聚类中心值
+            W_pruned = cluster_centers[labels].reshape(module.weight.data.shape)
+            module.weight.data = torch.from_numpy(W_pruned).to(device)
+
+            print(f"Layer {i}, {name}: Applied K-means clustering with {num_clusters} clusters.")
+
+    print('K-means Clustering Pruning Completed.')
+
+def prune_aigc_technique5(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    随机剪枝：随机选择权重进行剪枝。
+    """
+    print('Starting Random Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            total_params = W.numel()
+            if prune_n != 0:
+                num_prune = prune_n * (W.shape[1] // prune_m)
+            else:
+                num_prune = int(total_params * args.sparsity_ratio)
+
+            # 生成随机掩码
+            W_mask = torch.zeros_like(W, dtype=torch.bool)
+            prune_indices = torch.randperm(total_params)[:num_prune]
+            W_mask.view(-1)[prune_indices] = True
+
+            # 应用剪枝掩码
+            W[W_mask] = 0
+
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Randomly pruned {W_mask.sum().item()} weights.")
+
+    print('Random Pruning Completed.')
