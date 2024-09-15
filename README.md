@@ -119,7 +119,7 @@ For inference speedup with structured sparsity, we refer the reader to this [blo
 Last, for pruning image classifiers, see directory [image_classifiers](image_classifiers) for details.
 
 ## Acknowledgement
-This repository is build upon the [SparseGPT](https://github.com/IST-DASLab/sparsegpt) repository.
+This repository is build upon the [Wanda](https://github.com/locuslab/wanda) repository.
 
 ## License
 This project is released under the MIT license. Please see the [LICENSE](LICENSE) file for more information.
@@ -127,5 +127,4 @@ This project is released under the MIT license. Please see the [LICENSE](LICENSE
 ## Questions
 Feel free to discuss papers/code with us through issues/emails!
 
-mingjies at cs.cmu.edu  
-liuzhuangthu at gmail.com 
+Wei Jiang, wei@suanfamama.com

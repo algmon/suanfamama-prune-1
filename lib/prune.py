@@ -209,7 +209,6 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
     model.config.use_cache = use_cache 
     torch.cuda.empty_cache()
 
-
 @torch.no_grad()
 def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
     ## SparseGPT code available at: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
@@ -298,8 +297,6 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     model.config.use_cache = use_cache
     torch.cuda.empty_cache()
-
-
 
 @torch.no_grad()
 def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
@@ -468,14 +465,22 @@ def prune_movement(args, model, tokenizer, device=torch.device("cuda:0"), prune_
 
 def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
-    Prunes the model's biases based on their magnitude.
+    Prunes the model's weights based on the magnitude of biases.
 
+    For each layer, it prunes the weights connected to neurons with the smallest biases.
+    
+    Key Points:
+
+    * This implementation prunes weights based on the magnitude of biases.
+    * It does not modify the bias values themselves.
+    * The effectiveness of this method might depend on the specific task and model architecture. It's essential to evaluate its impact on performance.
+    
     Args:
         args: Arguments containing pruning parameters (e.g., sparsity ratio).
         model: The PyTorch model to prune.
         tokenizer: Tokenizer used for the model (not used in this function).
         device: Device to perform computations on (CPU or GPU).
-        prune_n: Number of biases to prune within each block (for structured pruning).
+        prune_n: Number of neurons to prune within each block (for structured pruning).
         prune_m: Block size for structured pruning.
     """
     layers = model.model.layers
@@ -488,18 +493,21 @@ def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
             # Check if the layer has a bias term
             if subset[name].bias is not None:
                 b = subset[name].bias.data
+                W = subset[name].weight.data
                 b_metric = torch.abs(b)  # Magnitude of biases
 
                 if prune_n != 0:
-                    # Structured pruning of biases
-                    b_mask = (torch.zeros_like(b) == 1)
-                    for ii in range(b_metric.shape[0]):
-                        if ii % prune_m == 0:
-                            tmp = b_metric[ii:(ii + prune_m)].float()
-                            b_mask.scatter_(0, ii + torch.topk(tmp, prune_n, dim=0, largest=False)[1], True)
+                    # Structured pruning: Prune 'prune_n' neurons in each block of 'prune_m'
+                    neuron_mask = (torch.zeros(b.shape[0]) == 1)  # Mask for neurons
+                    for ii in range(0, b.shape[0], prune_m):
+                        tmp = b_metric[ii:(ii + prune_m)].float()
+                        neuron_mask.scatter_(0, ii + torch.topk(tmp, prune_n, dim=0, largest=False)[1], True)
                 else:
-                    # Unstructured pruning of biases
+                    # Unstructured pruning: Prune neurons based on sparsity ratio
                     thresh = torch.sort(b_metric.flatten().cuda())[0][int(b.numel() * args.sparsity_ratio)].cpu()
-                    b_mask = (b_metric <= thresh)
+                    neuron_mask = (b_metric <= thresh)
 
-                b[b_mask] = 0  # Set pruned biases to zero
+                # Create a weight mask based on the neuron mask
+                W_mask = neuron_mask.unsqueeze(0).repeat(W.shape[0], 1)
+
+                W[W_mask] = 0  # Set weights of pruned neurons to zero
