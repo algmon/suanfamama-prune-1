@@ -422,7 +422,6 @@ def prune_opposite_magnitude(args, model, tokenizer, device=torch.device("cuda:0
 
             W[W_mask] = 0
 
-
 def prune_movement(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     layers = model.model.layers
 
@@ -466,3 +465,41 @@ def prune_movement(args, model, tokenizer, device=torch.device("cuda:0"), prune_
                 W.flatten()[keep_indices] += W.flatten()[prune_indices].sum() / (W.numel() - total_pruned)
 
             subset[name].weight.data = W  # Update the layer's weight
+
+def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Prunes the model's biases based on their magnitude.
+
+    Args:
+        args: Arguments containing pruning parameters (e.g., sparsity ratio).
+        model: The PyTorch model to prune.
+        tokenizer: Tokenizer used for the model (not used in this function).
+        device: Device to perform computations on (CPU or GPU).
+        prune_n: Number of biases to prune within each block (for structured pruning).
+        prune_m: Block size for structured pruning.
+    """
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name in subset:
+            # Check if the layer has a bias term
+            if subset[name].bias is not None:
+                b = subset[name].bias.data
+                b_metric = torch.abs(b)  # Magnitude of biases
+
+                if prune_n != 0:
+                    # Structured pruning of biases
+                    b_mask = (torch.zeros_like(b) == 1)
+                    for ii in range(b_metric.shape[0]):
+                        if ii % prune_m == 0:
+                            tmp = b_metric[ii:(ii + prune_m)].float()
+                            b_mask.scatter_(0, ii + torch.topk(tmp, prune_n, dim=0, largest=False)[1], True)
+                else:
+                    # Unstructured pruning of biases
+                    thresh = torch.sort(b_metric.flatten().cuda())[0][int(b.numel() * args.sparsity_ratio)].cpu()
+                    b_mask = (b_metric <= thresh)
+
+                b[b_mask] = 0  # Set pruned biases to zero
