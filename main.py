@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 
-from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_movement, prune_bias, prune_aigc_technique1, prune_aigc_technique2, prune_aigc_technique3, prune_aigc_technique4, prune_aigc_technique5
+from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_movement, prune_aigc_technique1, prune_aigc_technique2, prune_aigc_technique3, prune_aigc_technique4, prune_aigc_technique5
 from lib.eval import eval_ppl, eval_zero_shot
 
 print('torch', version('torch'))
