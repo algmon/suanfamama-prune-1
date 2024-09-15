@@ -467,21 +467,15 @@ def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
     """
     Prunes the model's weights based on the magnitude of biases.
 
-    For each layer, it prunes the weights connected to neurons with the smallest biases.
-    
-    Key Points:
+    For each layer, it prunes the weights connected to neurons with biases above a certain threshold.
 
-    * This implementation prunes weights based on the magnitude of biases.
-    * It does not modify the bias values themselves.
-    * The effectiveness of this method might depend on the specific task and model architecture. It's essential to evaluate its impact on performance.
-    
     Args:
         args: Arguments containing pruning parameters (e.g., sparsity ratio).
         model: The PyTorch model to prune.
         tokenizer: Tokenizer used for the model (not used in this function).
         device: Device to perform computations on (CPU or GPU).
-        prune_n: Number of neurons to prune within each block (for structured pruning).
-        prune_m: Block size for structured pruning.
+        prune_n: (Not used in this implementation)
+        prune_m: (Not used in this implementation)
     """
     layers = model.model.layers
 
@@ -496,18 +490,14 @@ def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
                 W = subset[name].weight.data
                 b_metric = torch.abs(b)  # Magnitude of biases
 
-                if prune_n != 0:
-                    # Structured pruning: Prune 'prune_n' neurons in each block of 'prune_m'
-                    neuron_mask = (torch.zeros(b.shape[0]) == 1)  # Mask for neurons
-                    for ii in range(0, b.shape[0], prune_m):
-                        tmp = b_metric[ii:(ii + prune_m)].float()
-                        neuron_mask.scatter_(0, ii + torch.topk(tmp, prune_n, dim=0, largest=False)[1], True)
-                else:
-                    # Unstructured pruning: Prune neurons based on sparsity ratio
-                    thresh = torch.sort(b_metric.flatten().cuda())[0][int(b.numel() * args.sparsity_ratio)].cpu()
-                    neuron_mask = (b_metric <= thresh)
+                # Calculate the threshold for pruning based on sparsity ratio
+                thresh = torch.sort(b_metric.flatten().cuda())[0][int(b.numel() * (1 - args.sparsity_ratio))].cpu()
+
+                # Create a neuron mask based on the threshold
+                neuron_mask = (b_metric >= thresh)  # Prune if bias magnitude is above the threshold
 
                 # Create a weight mask based on the neuron mask
                 W_mask = neuron_mask.unsqueeze(0).repeat(W.shape[0], 1)
 
-                W[W_mask] = 0  # Set weights of pruned neurons to zero
+                # Set weights of pruned neurons to zero
+                W[W_mask] = 0
