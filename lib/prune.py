@@ -484,20 +484,24 @@ def prune_bias(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
         subset = find_layers(layer)
 
         for name in subset:
-            # Check if the layer has a bias term
+            # 检查层是否有偏置项
             if subset[name].bias is not None:
                 b = subset[name].bias.data
                 W = subset[name].weight.data
-                b_metric = torch.abs(b)  # Magnitude of biases
+                b_metric = torch.abs(b)  # 偏置的幅度
 
-                # Calculate the threshold for pruning based on sparsity ratio
-                thresh = torch.sort(b_metric.flatten().cuda())[0][int(b.numel() * (1 - args.sparsity_ratio))].cpu()
+                # 根据稀疏比例计算剪枝阈值
+                sorted_b, _ = torch.sort(b_metric, descending=True)
+                cutoff = int(b.numel() * args.sparsity_ratio)
+                if cutoff == 0:
+                    continue  # 如果剪枝比例过小，跳过当前层
+                thresh = sorted_b[cutoff - 1].item()
 
-                # Create a neuron mask based on the threshold
-                neuron_mask = (b_metric >= thresh)  # Prune if bias magnitude is above the threshold
+                # 创建基于阈值的神经元掩码
+                neuron_mask = b_metric >= thresh  # 高于阈值的神经元将被剪枝
 
-                # Create a weight mask based on the neuron mask
-                W_mask = neuron_mask.unsqueeze(0).repeat(W.shape[0], 1)
+                # 创建与权重矩阵形状相匹配的权重掩码
+                W_mask = neuron_mask.unsqueeze(1).repeat(1, W.shape[1])
 
-                # Set weights of pruned neurons to zero
+                # 将被剪枝的权重设为零
                 W[W_mask] = 0
