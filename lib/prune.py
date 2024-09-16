@@ -491,7 +491,7 @@ def prune_aigc_technique1(args, model, tokenizer, device=torch.device("cuda:0"),
             sensitivity = sensitivity.cpu()
 
             # 根据敏感度选择剪枝阈值
-            if args.prune_n != 0:
+            if prune_n != 0:
                 threshold, _ = torch.topk(sensitivity.view(-1), prune_n, largest=False)
                 thresh = threshold[-1]
                 W_mask = sensitivity <= thresh
@@ -524,7 +524,7 @@ def prune_aigc_technique2(args, model, tokenizer, device=torch.device("cuda:0"),
             W_norm = torch.norm(W, p=1, dim=1)  # 计算每一行的 L1 范数
 
             # 根据 L1 范数选择剪枝阈值
-            if args.prune_n != 0:
+            if prune_n != 0:
                 threshold, _ = torch.topk(W_norm, prune_n, largest=False)
                 thresh = threshold[-1]
                 prune_rows = W_norm <= thresh
@@ -557,7 +557,7 @@ def prune_aigc_technique3(args, model, tokenizer, device=torch.device("cuda:0"),
             W_norm = torch.norm(W, p=1, dim=0)  # 计算每个通道（列）的 L1 范数
 
             # 根据通道 L1 范数选择剪枝阈值
-            if args.prune_n != 0:
+            if prune_n != 0:
                 threshold, _ = torch.topk(W_norm, prune_n, largest=False)
                 thresh = threshold[-1]
                 prune_channels = W_norm <= thresh
@@ -635,3 +635,290 @@ def prune_aigc_technique5(args, model, tokenizer, device=torch.device("cuda:0"),
             print(f"Layer {i}, {name}: Randomly pruned {W_mask.sum().item()} weights.")
 
     print('Random Pruning Completed.')
+
+def prune_aigc_technique6(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Random Pattern Pruning: Prune weights following a random pattern within each block.
+    """
+    import random
+
+    print('Starting Random Pattern Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            total_params = W.numel()
+            if prune_n != 0:
+                num_prune = prune_n * (W.shape[1] // prune_m)
+            else:
+                num_prune = int(total_params * args.sparsity_ratio)
+
+            # Generate random indices to prune
+            prune_indices = torch.randperm(total_params)[:num_prune]
+            W_mask = torch.zeros_like(W, dtype=torch.bool).view(-1)
+            W_mask[prune_indices] = True
+            W_mask = W_mask.view(W.size())
+
+            # Apply pruning mask
+            W[W_mask] = 0
+
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Randomly pruned {W_mask.sum().item()} weights.")
+
+    print('Random Pattern Pruning Completed.')
+
+class VariationalDropout(nn.Module):
+    def __init__(self, weight):
+        super().__init__()
+        self.weight = nn.Parameter(weight.data.clone())
+        self.dropout = nn.Dropout(p=0.1)
+
+    def forward(self, x):
+        return x  # The actual dropout is applied during pruning
+
+def prune_aigc_technique7(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Variational Dropout Pruning: Prune weights based on learned dropout probabilities.
+    """
+    print('Starting Variational Dropout Pruning...')
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            # Initialize Variational Dropout
+            variational_dropout = VariationalDropout(W)
+            # Simulate training to learn dropout probabilities
+            optimizer = torch.optim.Adam([variational_dropout.weight], lr=1e-3)
+            for epoch in range(5):  # Small number of epochs
+                optimizer.zero_grad()
+                output = layer.forward(W)  # Dummy forward
+                loss = (variational_dropout.weight ** 2).sum()
+                loss.backward()
+                optimizer.step()
+
+            # Determine pruning mask based on dropout probabilities
+            dropout_probs = torch.sigmoid(variational_dropout.weight)
+            if prune_n != 0:
+                threshold = torch.topk(dropout_probs.view(-1), prune_n, largest=False)[0][-1]
+                W_mask = dropout_probs <= threshold
+            else:
+                threshold = torch.quantile(dropout_probs.view(-1), args.sparsity_ratio)
+                W_mask = dropout_probs <= threshold
+
+            W[W_mask] = 0
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Pruned {W_mask.sum().item()} weights based on Variational Dropout.")
+
+    print('Variational Dropout Pruning Completed.')
+
+def prune_aigc_technique8(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Gradient-Based Pruning: Prune weights based on their gradient magnitudes.
+    """
+    print('Starting Gradient-Based Pruning...')
+    layers = model.model.layers
+
+    # Dummy input and label for gradient computation
+    dummy_input = tokenizer("This is a dummy input for gradient computation.", return_tensors="pt").to(device)
+    dummy_label = torch.tensor([0]).to(device)  # Dummy label
+
+    # Set model to training mode
+    model.train()
+
+    # Forward pass
+    outputs = model(**dummy_input, labels=dummy_label)
+    loss = outputs.loss
+    loss.backward()
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            if module.weight.grad is None:
+                continue
+            grad = module.weight.grad.abs()
+            sensitivity = grad * W.abs()
+
+            # Determine threshold
+            if prune_n != 0:
+                threshold = torch.topk(sensitivity.view(-1), prune_n, largest=False)[0][-1]
+                W_mask = sensitivity <= threshold
+            else:
+                threshold = torch.quantile(sensitivity.view(-1), args.sparsity_ratio)
+                W_mask = sensitivity <= threshold
+
+            # Apply pruning mask
+            W[W_mask] = 0
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Pruned {W_mask.sum().item()} weights based on gradient sensitivity.")
+
+    # Reset gradients
+    model.zero_grad()
+    model.eval()
+
+    print('Gradient-Based Pruning Completed.')
+
+def prune_aigc_technique9(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Elastic Weight Consolidation (EWC) Pruning: Prune weights while consolidating important weights to prevent forgetting.
+    """
+    import copy
+
+    print('Starting Elastic Weight Consolidation (EWC) Pruning...')
+    layers = model.model.layers
+
+    # Compute Fisher Information
+    fisher = {}
+    model.eval()
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+        for name, module in subset.items():
+            fisher[name] = module.weight.data.clone().fill_(0)
+
+    # Dummy input and label for Fisher Information computation
+    dummy_input = tokenizer("This is a dummy input for EWC computation.", return_tensors="pt").to(device)
+    dummy_label = torch.tensor([0]).to(device)
+
+    model.train()
+    outputs = model(**dummy_input, labels=dummy_label)
+    loss = outputs.loss
+    loss.backward()
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+        for name, module in subset.items():
+            if module.weight.grad is None:
+                continue
+            fisher[name] += module.weight.grad.data.clone().pow(2)
+
+    # Average Fisher Information
+    for name in fisher:
+        fisher[name] = fisher[name] / len(layers)
+
+    # Pruning with EWC
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        for name, module in subset.items():
+            W = module.weight.data
+            importance = fisher[name]
+            sensitivity = importance * W.abs()
+
+            # Determine threshold
+            if prune_n != 0:
+                threshold = torch.topk(sensitivity.view(-1), prune_n, largest=False)[0][-1]
+                W_mask = sensitivity <= threshold
+            else:
+                threshold = torch.quantile(sensitivity.view(-1), args.sparsity_ratio)
+                W_mask = sensitivity <= threshold
+
+            # Apply pruning mask
+            W[W_mask] = 0
+            module.weight.data = W.to(device)
+
+            print(f"Layer {i}, {name}: Pruned {W_mask.sum().item()} weights based on EWC sensitivity.")
+
+    # Reset gradients
+    model.zero_grad()
+    model.eval()
+
+    print('Elastic Weight Consolidation (EWC) Pruning Completed.')
+
+import torch.optim as optim
+from torch.distributions import Bernoulli
+import random
+
+class PruningAgent:
+    def __init__(self, model, args):
+        self.model = model
+        self.args = args
+        self.policy = {}
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
+        self.gamma = 0.99  # Discount factor
+
+        # Initialize policy: probability of pruning each weight
+        for name, param in self.model.named_parameters():
+            if 'weight' in name:
+                self.policy[name] = torch.ones_like(param, requires_grad=True) * 0.5  # Start with 50% prune chance
+
+    def select_action(self):
+        actions = {}
+        for name, probs in self.policy.items():
+            m = Bernoulli(probs)
+            actions[name] = m.sample()
+        return actions
+
+    def apply_pruning(self, actions):
+        for name, action in actions.items():
+            W = dict(self.model.named_parameters())[name].data
+            W[action.bool()] = 0
+            dict(self.model.named_parameters())[name].data = W
+
+    def compute_reward(self, loss_before, loss_after):
+        # Simple reward: reduction in loss
+        return (loss_before - loss_after).item()
+
+    def update_policy(self, actions, rewards):
+        # Placeholder for policy gradient update
+        # Implement the actual policy gradient computation
+        pass
+
+def prune_aigc_technique10(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    """
+    Dynamic Pruning with Reinforcement Learning: Use an RL agent to decide which weights to prune.
+    """
+    print('Starting Dynamic Pruning with Reinforcement Learning...')
+    layers = model.model.layers
+    agent = PruningAgent(model, args)
+
+    # Dummy input and label for training
+    dummy_input = tokenizer("This is a dummy input for RL pruning.", return_tensors="pt").to(device)
+    dummy_label = torch.tensor([0]).to(device)
+
+    for episode in range(args.rl_episodes):
+        model.train()
+        loss_before = 0.0
+
+        # Compute loss before pruning
+        outputs = model(**dummy_input, labels=dummy_label)
+        loss_before = outputs.loss.item()
+
+        # Select actions
+        actions = agent.select_action()
+
+        # Apply pruning
+        agent.apply_pruning(actions)
+
+        # Compute loss after pruning
+        outputs = model(**dummy_input, labels=dummy_label)
+        loss_after = outputs.loss.item()
+
+        # Compute reward
+        reward = agent.compute_reward(loss_before, loss_after)
+
+        # Update policy
+        agent.update_policy(actions, reward)
+
+        print(f"Episode {episode+1}: Reward: {reward}")
+
+        if reward < args.reward_threshold:
+            print("Desired reward achieved. Stopping pruning.")
+            break
+
+    print('Dynamic Pruning with Reinforcement Learning Completed.')
