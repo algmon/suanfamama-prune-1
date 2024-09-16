@@ -1,5 +1,5 @@
-# Pruning LLMs by Weights and Activations
-Official PyTorch implementation of **Wanda** (Pruning by **W**eights **and a**ctivations), as presented in our paper:
+# Pruning LLMs by Creative Factors such as Weights Bias and Activations
+Official PyTorch implementation of **(W)** (Pruning by **W**eights **and a**ctivations), as presented in our paper:
 
 **A Simple and Effective Pruning Approach for Large Language Models** </br>
 *Mingjie Sun\*, Zhuang Liu\*, Anna Bair, J. Zico Kolter* (* indicates equal contribution) <br>
@@ -24,6 +24,7 @@ class="center">
 Compared to magnitude pruning which removes weights solely based on their magnitudes, our pruning approach **Wanda** removes weights on a *per-output* basis, by the product of weight magnitudes and input activation norms.
 
 ## Update
+- [x] (9.16.2024) Add new prune alg called .
 - [x] (9.22.2023) Add [support](https://github.com/locuslab/wanda#pruning-llama-2) for LLaMA-2.
 - [x] (9.22.2023) Add [code](https://github.com/locuslab/wanda#ablation-on-obs-weight-update) to reproduce the ablation study on OBS weight update in the paper.
 - [x] (10.6.2023) Add new [support](https://github.com/locuslab/wanda#ablation-on-obs-weight-update) for the weight update analysis in the ablation study. Feel free to try it out!
