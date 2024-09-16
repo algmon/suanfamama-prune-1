@@ -922,3 +922,31 @@ def prune_aigc_technique10(args, model, tokenizer, device=torch.device("cuda:0")
             break
 
     print('Dynamic Pruning with Reinforcement Learning Completed.')
+
+'''
+(prune_llm) [ec2-user@ip-172-31-5-145 suanfamama-prune]$ python main.py --model baffo32/decapoda-research-llama-7B-hf --prune_method aigc_technique1 --sparsity_ratio 0.99 --sparsity_typ
+e unstructured --save out/llama_7b/unstructured/aigc_technique1/
+torch 1.10.1
+transformers 4.28.0
+accelerate 0.18.0
+# of gpus:  1
+loading llm model baffo32/decapoda-research-llama-7B-hf
+/home/ec2-user/miniconda3/envs/prune_llm/lib/python3.9/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading checkpoint shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 33/33 [01:41<00:00,  3.09s/it]
+/home/ec2-user/miniconda3/envs/prune_llm/lib/python3.9/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+use device  cuda:0
+pruning starts
+aigc tech 1: Starting Gradient Sensitivity Pruning...
+Traceback (most recent call last):
+  File "/home/ec2-user/Projects/suanfamama-prune/main.py", line 134, in <module>
+    main()
+  File "/home/ec2-user/Projects/suanfamama-prune/main.py", line 81, in main
+    prune_aigc_technique1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+  File "/home/ec2-user/Projects/suanfamama-prune/lib/prune.py", line 503, in prune_aigc_technique1
+    W[W_mask] = 0
+RuntimeError: a leaf Variable that requires grad is being used in an in-place operation.
+
+
+'''

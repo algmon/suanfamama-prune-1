@@ -88,15 +88,15 @@ def main():
         elif args.prune_method == "aigc_technique5":
             prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique6":
-            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique6(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique7":
-            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique7(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique8":
-            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique8(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique9":
-            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique9(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique10":
-            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique10(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
 
     ################################################################
     print("*"*30)
