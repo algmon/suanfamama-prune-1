@@ -431,7 +431,7 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
             W_metric = torch.abs(W)  # Magnitude-based importance
 
             if prune_n != 0:
-                # Structured Movement Pruning
+                # Structured Mama Pruning
                 for ii in range(W_metric.shape[1]):
                     if ii % prune_m == 0:
                         block = W[:, ii:(ii + prune_m)]
@@ -450,7 +450,7 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
                         W[:, ii:(ii + prune_m)] = block  # Update the original weight matrix
 
             else:
-                # Unstructured Movement Pruning
+                # Unstructured Mama Pruning
                 total_pruned = int(W.numel() * args.sparsity_ratio)
 
                 # Find indices of weights to prune and keep globally
