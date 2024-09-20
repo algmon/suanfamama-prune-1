@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 
-from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_movement, prune_aigc_technique1, prune_aigc_technique2, prune_aigc_technique3, prune_aigc_technique4, prune_aigc_technique5, prune_aigc_technique6, prune_aigc_technique7, prune_aigc_technique8, prune_aigc_technique9, prune_aigc_technique10
+from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_mama, prune_aigc_technique1, prune_aigc_technique2, prune_aigc_technique3, prune_aigc_technique4, prune_aigc_technique5, prune_aigc_technique6, prune_aigc_technique7, prune_aigc_technique8, prune_aigc_technique9, prune_aigc_technique10
 from lib.eval import eval_ppl, eval_zero_shot
 
 print('torch', version('torch'))
@@ -75,8 +75,8 @@ def main():
             prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "opposite_magnitude":
             prune_opposite_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-        elif args.prune_method == "movement":
-            prune_movement(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+        elif args.prune_method == "mama":
+            prune_mama(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique1":
             prune_aigc_technique1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique2":
