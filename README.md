@@ -1,4 +1,4 @@
-# Pruning LLMs by Creative Factors such as Weights Bias and Activations
+# Pruning LLMs by Weights and Activations
 Official PyTorch implementation of **(W)** (Pruning by **W**eights **and a**ctivations), as presented in our paper:
 
 **A Simple and Effective Pruning Approach for Large Language Models** </br>
