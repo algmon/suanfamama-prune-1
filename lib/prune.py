@@ -616,7 +616,8 @@ def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"),
     # Last Updated Date: 20240921 - 7:00PM
     # Revision 1:
     # Revision 2:
-    # status: under review
+    # Revision 3:
+    # status: pause
     # Ensure the tokenizer has a pad_token
     if tokenizer.pad_token is None:
         print("Tokenizer does not have a pad_token. Attempting to set it.")
