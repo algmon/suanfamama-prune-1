@@ -78,7 +78,7 @@ def main():
         elif args.prune_method == "mama":
             prune_mama(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "mama_mutation_1":
-            prune_mama(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_mama_mutation_1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique1":
             pass #prune_aigc_technique1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique2":

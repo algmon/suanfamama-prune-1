@@ -421,7 +421,7 @@ def prune_opposite_magnitude(args, model, tokenizer, device=torch.device("cuda:0
 
 def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on the description in the paper.
-    # Last Updated Date: 20240915
+    # Last Updated Date: 20240920
     layers = model.model.layers
 
     for i in range(len(layers)):
@@ -433,7 +433,7 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
             W_metric = torch.abs(W)  # Magnitude-based importance
 
             if prune_n != 0:
-                # Structured MAMA Pruning
+                # Structured Movement Pruning
                 for ii in range(W_metric.shape[1]):
                     if ii % prune_m == 0:
                         block = W[:, ii:(ii + prune_m)]
@@ -452,7 +452,7 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
                         W[:, ii:(ii + prune_m)] = block  # Update the original weight matrix
 
             else:
-                # Unstructured MAMA Pruning
+                # Unstructured Movement Pruning
                 total_pruned = int(W.numel() * args.sparsity_ratio)
 
                 # Find indices of weights to prune and keep globally
