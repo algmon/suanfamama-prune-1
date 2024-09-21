@@ -482,6 +482,7 @@ def collect_activations(model, data_loader, device):
     model.eval()
     with torch.no_grad():
         for batch in data_loader:
+            print("Batch keys:", batch.keys())
             inputs = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             model(inputs, attention_mask=attention_mask)
@@ -520,10 +521,11 @@ def prune_parameters(model, importance_scores, sparsity_ratio):
 
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
-    # Last Updated Date: 20240921 18PM
+    # Last Updated Date: 20240921 18:15
     # Revision 1: One shot implementation by human and machine
     # Revision 2: FIX error by setting the pad_token to be the same as the eos_token by human and machine
-    # Revision 3: FIX error by updating the tokennize_function
+    # Revision 3: FIX error by updating the tokennize_function by human and machine
+    # Revision 4: FIX error by ensuring the batch passed to the DataCollatorWithPadding only contains tokenized numerical data
     from torch.utils.data import DataLoader
     from datasets import load_dataset
     from transformers import DataCollatorWithPadding
@@ -547,11 +549,25 @@ def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"),
             max_length=512
         )
 
-    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    # Remove the 'text' column after tokenization
+    tokenized_dataset = dataset.map(
+        tokenize_function,
+        batched=True,
+        remove_columns=dataset.column_names,
+    )
 
     # Use a data collator to handle padding and conversion to tensors
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, padding='max_length', max_length=512)
-    data_loader = DataLoader(tokenized_dataset, batch_size=1, collate_fn=data_collator)
+    data_collator = DataCollatorWithPadding(
+        tokenizer=tokenizer, 
+        padding='max_length', 
+        max_length=512
+    )
+
+    data_loader = DataLoader(
+        tokenized_dataset, 
+        batch_size=1, 
+        collate_fn=data_collator,
+    )
 
     model.to(device)
     activation_means = collect_activations(model, data_loader, device)
