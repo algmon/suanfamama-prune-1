@@ -465,12 +465,118 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
 
             subset[name].weight.data = W  # Update the layer's weight
 
+def collect_activations(model, data_loader, device):
+    activation_means = {}
+
+    def save_activation(name):
+        def hook(module, input, output):
+            activation_means[name] = output.detach().abs().mean().item()
+        return hook
+
+    hooks = []
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.Linear):
+            hooks.append(module.register_forward_hook(save_activation(name)))
+
+    model.eval()
+    with torch.no_grad():
+        for batch in data_loader:
+            inputs = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            model(inputs, attention_mask=attention_mask)
+            break  # Collect activations from one batch
+
+    # Remove hooks
+    for hook in hooks:
+        hook.remove()
+
+    return activation_means
+
+def compute_importance_scores(model, activation_means):
+    importance_scores = {}
+
+    for name, param in model.named_parameters():
+        if 'weight' in name and param.requires_grad:
+            layer_name = name.rsplit('.', 2)[0]  # Adjust based on your model's naming convention
+            activation_importance = activation_means.get(layer_name, 1.0)
+            weight_importance = param.abs() * activation_importance
+            importance_scores[name] = weight_importance
+        elif 'bias' in name and param.requires_grad:
+            bias_importance = param.abs()
+            importance_scores[name] = bias_importance
+
+    return importance_scores
+
+def prune_parameters(model, importance_scores, sparsity_ratio):
+    all_scores = torch.cat([score.view(-1) for score in importance_scores.values()])
+    threshold = torch.quantile(all_scores, sparsity_ratio)
+
+    with torch.no_grad():
+        for name, param in model.named_parameters():
+            if name in importance_scores:
+                mask = (importance_scores[name] >= threshold).float()
+                param.mul_(mask)
+
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
     # Last Updated Date: 20240921
-    pass
+    from torch.utils.data import DataLoader
+    from datasets import load_dataset
+
+    # Load a small dataset for activation collection
+    dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
+    def tokenize_function(examples):
+        return tokenizer(examples['text'], return_tensors='pt', truncation=True, padding='max_length', max_length=512)
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    data_loader = DataLoader(tokenized_dataset, batch_size=1)
+
+    model.to(device)
+    activation_means = collect_activations(model, data_loader, device)
+    importance_scores = compute_importance_scores(model, activation_means)
+    prune_parameters(model, importance_scores, args.sparsity_ratio)
+
+def compute_gradients(model, data_loader, device):
+    model.train()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    loss_function = torch.nn.CrossEntropyLoss()
+
+    batch = next(iter(data_loader))
+    inputs = batch["input_ids"].squeeze(1).to(device)
+    attention_mask = batch["attention_mask"].squeeze(1).to(device)
+    labels = inputs.clone()
+
+    optimizer.zero_grad()
+    outputs = model(inputs, attention_mask=attention_mask)
+    logits = outputs.logits
+    loss = loss_function(logits.view(-1, logits.size(-1)), labels.view(-1))
+    loss.backward()
+
+def compute_importance_scores_with_gradients(model):
+    importance_scores = {}
+
+    for name, param in model.named_parameters():
+        if param.requires_grad and param.grad is not None:
+            importance = (param * param.grad).abs()
+            importance_scores[name] = importance
+
+    return importance_scores
 
 def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on advanced indicators.
     # Last Updated Date: 20240921
-    pass
+    from torch.utils.data import DataLoader
+    from datasets import load_dataset
+
+    # Load a small dataset for gradient computation
+    dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
+    def tokenize_function(examples):
+        return tokenizer(examples['text'], return_tensors='pt', truncation=True, padding='max_length', max_length=512)
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    data_loader = DataLoader(tokenized_dataset, batch_size=1)
+
+    model.to(device)
+    compute_gradients(model, data_loader, device)
+    importance_scores = compute_importance_scores_with_gradients(model)
+    prune_parameters(model, importance_scores, args.sparsity_ratio)
