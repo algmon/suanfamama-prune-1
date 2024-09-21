@@ -466,47 +466,11 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
             subset[name].weight.data = W  # Update the layer's weight
 
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
-    # TODO: Optimize the MAMA pruning algorithm based on the description in the paper.
-    # Last Updated Date: 20240915
-    layers = model.model.layers
+    # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
+    # Last Updated Date: 20240921
+    pass
 
-    for i in range(len(layers)):
-        layer = layers[i]
-        subset = find_layers(layer)
-
-        for name in subset:
-            W = subset[name].weight.data
-            W_metric = torch.abs(W)  # Magnitude-based importance
-
-            if prune_n != 0:
-                # Structured MAMA Pruning
-                for ii in range(W_metric.shape[1]):
-                    if ii % prune_m == 0:
-                        block = W[:, ii:(ii + prune_m)]
-                        block_metric = W_metric[:, ii:(ii + prune_m)]
-
-                        # Find indices of weights to prune and keep
-                        prune_indices = torch.topk(block_metric, prune_n, dim=1, largest=False)[1]
-                        keep_indices = torch.topk(block_metric, prune_m - prune_n, dim=1, largest=True)[1]
-
-                        # Move values from pruned weights to the average of kept weights
-                        block[torch.arange(block.shape[0]).unsqueeze(1), prune_indices] = 0  # Zero out pruned weights
-                        block[torch.arange(block.shape[0]).unsqueeze(1), keep_indices] += \
-                            block[torch.arange(block.shape[0]).unsqueeze(1), prune_indices].sum(dim=1, keepdim=True) / (
-                                        prune_m - prune_n)
-
-                        W[:, ii:(ii + prune_m)] = block  # Update the original weight matrix
-
-            else:
-                # Unstructured MAMA Pruning
-                total_pruned = int(W.numel() * args.sparsity_ratio)
-
-                # Find indices of weights to prune and keep globally
-                prune_indices = torch.topk(W_metric.flatten(), total_pruned, largest=False)[1]
-                keep_indices = torch.topk(W_metric.flatten(), W.numel() - total_pruned, largest=True)[1]
-
-                # Move values from pruned weights to the average of kept weights
-                W.flatten()[prune_indices] = 0  # Zero out pruned weights
-                W.flatten()[keep_indices] += W.flatten()[prune_indices].sum() / (W.numel() - total_pruned)
-
-            subset[name].weight.data = W  # Update the layer's weight
+def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+    # TODO: Optimize the MAMA pruning algorithm based on advanced indicators.
+    # Last Updated Date: 20240921
+    pass

@@ -1,0 +1,54 @@
+(prune_llm) [ec2-user@ip-172-31-5-145 suanfamama-prune-1]$ python main.py --model baffo32/decapoda-research-llama-7B-hf --prune_method mama  --sparsity_ratio 0.00 --sparsity_type unstructured --save out/llama_7b/unstructured/prune_mama/
+torch 1.10.1
+transformers 4.28.0
+accelerate 0.18.0
+# of gpus:  1
+loading llm model baffo32/decapoda-research-llama-7B-hf
+/home/ec2-user/miniconda3/envs/prune_llm/lib/python3.9/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading checkpoint shards: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 33/33 [00:10<00:00,  3.03it/s]
+/home/ec2-user/miniconda3/envs/prune_llm/lib/python3.9/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+use device  cuda:0
+******************************
+layer 0 sparsity 0.000001
+layer 1 sparsity 0.000001
+layer 2 sparsity 0.000001
+layer 3 sparsity 0.000001
+layer 4 sparsity 0.000001
+layer 5 sparsity 0.000001
+layer 6 sparsity 0.000001
+layer 7 sparsity 0.000001
+layer 8 sparsity 0.000001
+layer 9 sparsity 0.000001
+layer 10 sparsity 0.000001
+layer 11 sparsity 0.000001
+layer 12 sparsity 0.000001
+layer 13 sparsity 0.000001
+layer 14 sparsity 0.000001
+layer 15 sparsity 0.000001
+layer 16 sparsity 0.000001
+layer 17 sparsity 0.000001
+layer 18 sparsity 0.000001
+layer 19 sparsity 0.000001
+layer 20 sparsity 0.000001
+layer 21 sparsity 0.000001
+layer 22 sparsity 0.000001
+layer 23 sparsity 0.000001
+layer 24 sparsity 0.000001
+layer 25 sparsity 0.000001
+layer 26 sparsity 0.000001
+layer 27 sparsity 0.000001
+layer 28 sparsity 0.000001
+layer 29 sparsity 0.000001
+layer 30 sparsity 0.000001
+layer 31 sparsity 0.000001
+sparsity sanity check 0.0000
+******************************
+evaluating on wikitext2
+nsamples 166
+sample 0
+sample 50
+sample 100
+sample 150
+wikitext perplexity 5.677263259887695
