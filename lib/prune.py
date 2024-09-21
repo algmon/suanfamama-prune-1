@@ -465,6 +465,7 @@ def prune_mama(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0,
 
             subset[name].weight.data = W  # Update the layer's weight
 
+
 def collect_activations(model, data_loader, device):
     activation_means = {}
 
@@ -519,28 +520,44 @@ def prune_parameters(model, importance_scores, sparsity_ratio):
 
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
-    # Last Updated Date: 20240921
-    # Revision 1: One shot by human and machine
-    # Revision 2: Fix error by setting the pad_token to be the same as the eos_token by human and machine
+    # Last Updated Date: 20240921 18PM
+    # Revision 1: One shot implementation by human and machine
+    # Revision 2: FIX error by setting the pad_token to be the same as the eos_token by human and machine
+    # Revision 3: FIX error by updating the tokennize_function
     from torch.utils.data import DataLoader
     from datasets import load_dataset
+    from transformers import DataCollatorWithPadding
 
     # Set pad_token to eos_token
     tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    # Verify pad_token is set
+    print("Pad token:", tokenizer.pad_token)
+    print("Pad token ID:", tokenizer.pad_token_id)
 
     # Load a small dataset for activation collection
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
 
     def tokenize_function(examples):
-        return tokenizer(examples['text'], return_tensors='pt', truncation=True, padding='max_length', max_length=512)
+        return tokenizer(
+            examples['text'],
+            truncation=True,
+            padding='max_length',
+            max_length=512
+        )
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
-    data_loader = DataLoader(tokenized_dataset, batch_size=1)
+
+    # Use a data collator to handle padding and conversion to tensors
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, padding='max_length', max_length=512)
+    data_loader = DataLoader(tokenized_dataset, batch_size=1, collate_fn=data_collator)
 
     model.to(device)
     activation_means = collect_activations(model, data_loader, device)
     importance_scores = compute_importance_scores(model, activation_means)
     prune_parameters(model, importance_scores, args.sparsity_ratio)
+
 
 def compute_gradients(model, data_loader, device):
     model.train()
