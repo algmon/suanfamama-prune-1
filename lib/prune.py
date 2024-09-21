@@ -613,23 +613,37 @@ def compute_importance_scores_with_gradients(model):
 
 def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on advanced indicators.
-    # Last Updated Date: 20240921 - 
+    # Last Updated Date: 20240921 - 7:00PM
     # Revision 1:
+    # Revision 2:
     # status: under review
-    from torch.utils.data import DataLoader
-    from datasets import load_dataset
-
     # Ensure the tokenizer has a pad_token
     if tokenizer.pad_token is None:
-        # Option 1: Set pad_token to eos_token
-        tokenizer.pad_token = tokenizer.eos_token
-        # Option 2: Add a new pad_token
-        # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        # model.resize_token_embeddings(len(tokenizer))
-    
+        print("Tokenizer does not have a pad_token. Attempting to set it.")
+        if tokenizer.eos_token is not None:
+            print("Setting pad_token to eos_token.")
+            tokenizer.pad_token = tokenizer.eos_token
+            print(f"pad_token set to: {tokenizer.pad_token}")
+            print(f"pad_token_id set to: {tokenizer.pad_token_id}")
+            # Update the model's configuration to recognize the new pad_token_id
+            model.config.pad_token_id = tokenizer.pad_token_id
+        else:
+            print("eos_token is also not set. Adding a new pad_token '[PAD]'.")
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            model.resize_token_embeddings(len(tokenizer))
+            print(f"pad_token set to: {tokenizer.pad_token}")
+            print(f"pad_token_id set to: {tokenizer.pad_token_id}")
+            model.config.pad_token_id = tokenizer.pad_token_id
+
+    # Verify that pad_token is set
+    assert tokenizer.pad_token is not None, "pad_token was not set successfully."
+    assert tokenizer.pad_token_id is not None, "pad_token_id was not set successfully."
+    print(f"Final pad_token: {tokenizer.pad_token}")
+    print(f"Final pad_token_id: {tokenizer.pad_token_id}")
+
     # Load a small dataset for gradient computation
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
-    
+
     def tokenize_function(examples):
         return tokenizer(
             examples['text'],
