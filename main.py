@@ -7,6 +7,7 @@ from importlib.metadata import version
 
 from lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_opposite_magnitude, prune_mama, prune_mama_mutation_1, prune_mama_mutation_2
 from lib.eval import eval_ppl, eval_zero_shot
+from lib.prune_one_shot_aigc import prune_aigc_technique1, prune_aigc_technique2, prune_aigc_technique3, prune_aigc_technique4, prune_aigc_technique5, prune_aigc_technique6, prune_aigc_technique7, prune_aigc_technique8, prune_aigc_technique9, prune_aigc_technique10
 
 print('torch', version('torch'))
 print('transformers', version('transformers'))
@@ -82,25 +83,25 @@ def main():
         elif args.prune_method == "mama_mutation_2":
             prune_mama_mutation_2(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique1":
-            pass #prune_aigc_technique1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique1(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique2":
-            pass #prune_aigc_technique2(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique2(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique3":
-            pass #prune_aigc_technique3(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique3(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique4":
-            pass #prune_aigc_technique4(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique4(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique5":
-            pass #prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique5(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique6":
-            pass #prune_aigc_technique6(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique6(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique7":
-            pass #prune_aigc_technique7(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique7(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique8":
-            pass #prune_aigc_technique8(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique8(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique9":
-            pass #prune_aigc_technique9(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique9(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         elif args.prune_method == "aigc_technique10":
-            pass #prune_aigc_technique10(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            prune_aigc_technique10(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
 
     ################################################################
     print("*"*30)

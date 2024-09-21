@@ -105,6 +105,7 @@ def return_given_alpha(alpha, sort_res, W_metric, tmp_metric, sum_before):
 def prune_aigc_technique1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     梯度敏感剪枝：基于权重对损失的敏感性进行剪枝。
+    status: runtime error
     """
     print('aigc tech 1: Starting Gradient Sensitivity Pruning...')
     layers = model.model.layers
@@ -150,6 +151,7 @@ def prune_aigc_technique1(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     L1 范数剪枝：基于权重的 L1 范数进行剪枝。
+    status: ok and number reported
     """
     print('aigc tech 2: Starting L1 Norm Pruning...')
     layers = model.model.layers
@@ -183,6 +185,7 @@ def prune_aigc_technique2(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique3(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     结构化剪枝：基于通道的重要性进行剪枝。
+    status: ok and number reported
     """
     print('aigc tech 3: Starting Structured Pruning...')
     layers = model.model.layers
@@ -219,6 +222,7 @@ import numpy as np
 def prune_aigc_technique4(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     K-means 聚类剪枝：通过权重聚类来实现剪枝和量化。
+    status: runtime error
     """
     print('aigc tech 4: Starting K-means Clustering Pruning...')
     layers = model.model.layers
@@ -245,6 +249,7 @@ def prune_aigc_technique4(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique5(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     随机剪枝：随机选择权重进行剪枝。
+    status: runtime error
     """
     print('aigc tech 5: Starting Random Pruning...')
     layers = model.model.layers
@@ -278,6 +283,7 @@ def prune_aigc_technique5(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique6(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     Random Pattern Pruning: Prune weights following a random pattern within each block.
+    status: ok and number reported
     """
     import random
 
@@ -323,6 +329,7 @@ class VariationalDropout(nn.Module):
 def prune_aigc_technique7(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     Variational Dropout Pruning: Prune weights based on learned dropout probabilities.
+    status: runtime error
     """
     print('aigc tech 7: Starting Variational Dropout Pruning...')
     layers = model.model.layers
@@ -363,6 +370,7 @@ def prune_aigc_technique7(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique8(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     Gradient-Based Pruning: Prune weights based on their gradient magnitudes.
+    status: runtime error
     """
     print('aigc tech 8: Starting Gradient-Based Pruning...')
     layers = model.model.layers
@@ -413,6 +421,7 @@ def prune_aigc_technique8(args, model, tokenizer, device=torch.device("cuda:0"),
 def prune_aigc_technique9(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     Elastic Weight Consolidation (EWC) Pruning: Prune weights while consolidating important weights to prevent forgetting.
+    status: runtime error
     """
     import copy
 
@@ -521,6 +530,7 @@ class PruningAgent:
 def prune_aigc_technique10(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     """
     Dynamic Pruning with Reinforcement Learning: Use an RL agent to decide which weights to prune.
+    status: runtime error
     """
     print('aigc tech 10: Starting Dynamic Pruning with Reinforcement Learning...')
     layers = model.model.layers
