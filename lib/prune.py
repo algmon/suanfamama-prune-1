@@ -520,11 +520,17 @@ def prune_parameters(model, importance_scores, sparsity_ratio):
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
     # Last Updated Date: 20240921
+    # Revision 1: One shot by human and machine
+    # Revision 2: Fix error by setting the pad_token to be the same as the eos_token by human and machine
     from torch.utils.data import DataLoader
     from datasets import load_dataset
 
+    # Set pad_token to eos_token
+    tokenizer.pad_token = tokenizer.eos_token
+
     # Load a small dataset for activation collection
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
+
     def tokenize_function(examples):
         return tokenizer(examples['text'], return_tensors='pt', truncation=True, padding='max_length', max_length=512)
 
