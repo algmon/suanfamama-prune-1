@@ -529,12 +529,13 @@ def prune_parameters(model, importance_scores, sparsity_ratio):
 
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on basic indicators.
-    # Last Updated Date: 20240921 18:15
+    # Last Updated Date: 20240921 18:30
     # Revision 1: One shot implementation by human and machine
     # Revision 2: FIX error by setting the pad_token to be the same as the eos_token by human and machine
     # Revision 3: FIX error by updating the tokennize_function by human and machine
     # Revision 4: FIX error by ensuring the batch passed to the DataCollatorWithPadding only contains tokenized numerical data
     # Revision 5: FIX error by balancing the GPU and CPU computational cost by human and machine
+    # status: pause
     from torch.utils.data import DataLoader
     from datasets import load_dataset
     from transformers import DataCollatorWithPadding
@@ -612,14 +613,31 @@ def compute_importance_scores_with_gradients(model):
 
 def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     # TODO: Optimize the MAMA pruning algorithm based on advanced indicators.
-    # Last Updated Date: 20240921
+    # Last Updated Date: 20240921 - 
+    # Revision 1:
+    # status: under review
     from torch.utils.data import DataLoader
     from datasets import load_dataset
 
+    # Ensure the tokenizer has a pad_token
+    if tokenizer.pad_token is None:
+        # Option 1: Set pad_token to eos_token
+        tokenizer.pad_token = tokenizer.eos_token
+        # Option 2: Add a new pad_token
+        # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        # model.resize_token_embeddings(len(tokenizer))
+    
     # Load a small dataset for gradient computation
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='validation')
+    
     def tokenize_function(examples):
-        return tokenizer(examples['text'], return_tensors='pt', truncation=True, padding='max_length', max_length=512)
+        return tokenizer(
+            examples['text'],
+            return_tensors='pt',
+            truncation=True,
+            padding='max_length',
+            max_length=512
+        )
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
     data_loader = DataLoader(tokenized_dataset, batch_size=1)
@@ -627,4 +645,4 @@ def prune_mama_mutation_2(args, model, tokenizer, device=torch.device("cuda:0"),
     model.to(device)
     compute_gradients(model, data_loader, device)
     importance_scores = compute_importance_scores_with_gradients(model)
-    prune_parameters(model, importance_scores, args.sparsity_ratio)
+    prune_parameters(model, importance_scores, args.sparsity_ratio)  # Ensure this function is properly defined
