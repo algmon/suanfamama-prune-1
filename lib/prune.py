@@ -498,25 +498,33 @@ def compute_importance_scores(model, activation_means):
     importance_scores = {}
 
     for name, param in model.named_parameters():
-        if 'weight' in name and param.requires_grad:
-            layer_name = name.rsplit('.', 2)[0]  # Adjust based on your model's naming convention
-            activation_importance = activation_means.get(layer_name, 1.0)
-            weight_importance = param.abs() * activation_importance
-            importance_scores[name] = weight_importance
-        elif 'bias' in name and param.requires_grad:
-            bias_importance = param.abs()
-            importance_scores[name] = bias_importance
+        if param.requires_grad:
+            # Move parameter to CPU
+            param_cpu = param.detach().cpu()
+
+            if 'weight' in name:
+                layer_name = '.'.join(name.split('.')[:-1])
+                activation_importance = activation_means.get(layer_name, 1.0)
+                weight_importance = param_cpu.abs() * activation_importance
+                importance_scores[name] = weight_importance
+            elif 'bias' in name:
+                bias_importance = param_cpu.abs()
+                importance_scores[name] = bias_importance
 
     return importance_scores
 
 def prune_parameters(model, importance_scores, sparsity_ratio):
+    # All importance scores are on CPU
     all_scores = torch.cat([score.view(-1) for score in importance_scores.values()])
     threshold = torch.quantile(all_scores, sparsity_ratio)
 
     with torch.no_grad():
         for name, param in model.named_parameters():
             if name in importance_scores:
+                # Get mask on CPU
                 mask = (importance_scores[name] >= threshold).float()
+                # Move mask to the device of param (GPU)
+                mask = mask.to(param.device)
                 param.mul_(mask)
 
 def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
@@ -526,6 +534,7 @@ def prune_mama_mutation_1(args, model, tokenizer, device=torch.device("cuda:0"),
     # Revision 2: FIX error by setting the pad_token to be the same as the eos_token by human and machine
     # Revision 3: FIX error by updating the tokennize_function by human and machine
     # Revision 4: FIX error by ensuring the batch passed to the DataCollatorWithPadding only contains tokenized numerical data
+    # Revision 5: FIX error by balancing the GPU and CPU computational cost by human and machine
     from torch.utils.data import DataLoader
     from datasets import load_dataset
     from transformers import DataCollatorWithPadding
